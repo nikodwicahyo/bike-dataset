@@ -1,136 +1,167 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Pengaturan tampilan Streamlit
-st.set_page_config(page_title="Bike Sharing Dashboard", layout="wide", initial_sidebar_state="expanded")
+# Konfigurasi halaman Streamlit
+st.set_page_config(
+    page_title="🚲 Dashboard Berbagi Sepeda", 
+    layout="wide", 
+    initial_sidebar_state="expanded"
+)
 
-# Membaca data yang telah dibersihkan
+# Pemuatan data dengan caching
 @st.cache_data
-def load_data():
+def muat_data():
     return pd.read_csv('main_data.csv')
 
-data = load_data()
+data = muat_data()
 
-# Tema warna
-colors = {
-    'background': '#0e1117',
-    'text': '#ffffff',
-    'primary': '#FF4B4B',
-    'secondary': '#0083B8'
+# Konversi kolom 'dteday' menjadi tipe tanggal
+data['dteday'] = pd.to_datetime(data['dteday'], format='%Y-%m-%d')
+
+# Palet warna modern dan ramah pengguna
+warna = {
+    'latar': '#fafafa',
+    'teks': '#333333',
+    'utama': '#1abc9c',
+    'sekunder': '#e74c3c',
+    'aksen': '#3498db',
+    'netral': '#bdc3c7'
 }
 
-# Custom CSS
+# CSS kustom untuk meningkatkan tampilan
 st.markdown(f"""
     <style>
-    .reportview-container .main .block-container{{
+    .reportview-container .main .block-container {{
         max-width: 1200px;
-        padding-top: 2rem;
-        padding-right: 2rem;
-        padding-left: 2rem;
-        padding-bottom: 2rem;
+        padding: 2rem;
+        background-color: {warna['latar']};
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }}
     .reportview-container .main {{
-        color: {colors['text']};
-        background-color: {colors['background']};
+        color: {warna['teks']};
+        font-family: 'Helvetica', sans-serif;
     }}
-    .sidebar .sidebar-content {{
-        background-color: {colors['background']};
+    h1, h2, h3 {{
+        color: {warna['utama']};
+        font-weight: 600;
     }}
-    .Widget>label {{
-        color: {colors['text']};
+    .stSelectbox label, .stSlider label {{
+        color: {warna['teks']} !important;
     }}
-    .stPlotlyChart {{
-        background-color: {colors['background']};
+    .stMetric {{
+        background-color: {warna['utama']};
+        padding: 15px;
+        border-radius: 8px;
+        color: white;
     }}
-    .st-bb {{
-        background-color: {colors['background']};
+    .stMetric .stMetricLabel {{
+        color: white !important;
+        font-size: 1rem;
     }}
-    .st-at {{
-        background-color: {colors['background']};
+    .stMetric .stMetricValue {{
+        font-size: 1.8rem;
     }}
-    .st-cy {{
-        background-color: {colors['secondary']};
-    }}
-    .st-d5 {{
-        background-color: {colors['primary']};
+    .st-expander {{
+        background-color: {warna['netral']};
+        border-radius: 8px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }}
     </style>
     """, unsafe_allow_html=True)
 
 # Judul dashboard
-st.title("🚲 Bike Sharing Dashboard")
-st.markdown("Analisis mendalam tentang pola penggunaan sepeda")
+st.title("🚲 Dashboard Analitik Sepeda")
+st.markdown("Jelajahi pola penggunaan sepeda dengan visualisasi interaktif dan desain modern.")
 
-# Sidebar
-st.sidebar.header("🛠️ Konfigurasi Dashboard")
-data_type = st.sidebar.selectbox("Pilih Tipe Data", options=['daily', 'hourly'])
+# Sidebar untuk pilihan data
+with st.sidebar:
+    st.header("🛠️ Opsi Dashboard")
+    jenis_data = st.selectbox("Pilih Jenis Data", options=['Harian', 'Per Jam'])
 
-# Filter data
-filtered_data = data[data['type'] == data_type]
+# Filter data berdasarkan jenis yang dipilih
+data_terfilter = data[data['type'] == ('daily' if jenis_data == 'Harian' else 'hourly')]
 
-# Metrik Utama
+# Metrik utama yang ditampilkan di dashboard
+st.subheader("📊 Metrik Utama")
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.metric("Total Peminjaman", f"{filtered_data['cnt'].sum():,}")
+    st.metric("Total Penyewaan", f"{data_terfilter['cnt'].sum():,} Unit")
 with col2:
-    st.metric("Rata-rata Harian", f"{filtered_data['cnt'].mean():.2f}")
+    st.metric("Penggunaan Terbanyak", f"{data_terfilter['cnt'].max():,} Unit")
 with col3:
-    st.metric("Jumlah Hari/Jam", f"{filtered_data.shape[0]}")
+    st.metric("Jumlah Data", f"{data_terfilter.shape[0]} Rekaman")
 
-# Fungsi untuk membuat grafik
-def create_chart(data, x, y, chart_type, title):
-    if chart_type == 'Bar':
-        fig = px.bar(data, x=x, y=y, title=title)
-    else:  # Grafik Garis
-        fig = px.line(data, x=x, y=y, title=title)
-    fig.update_layout(
-        plot_bgcolor=colors['background'],
-        paper_bgcolor=colors['background'],
-        font_color=colors['text']
-    )
-    return fig
+# Tren penggunaan sepeda
+st.subheader("📈 Tren Penggunaan Sepeda")
+fig, ax = plt.subplots(figsize=(16, 8))
+ax.plot(
+    data_terfilter["dteday"],
+    data_terfilter["cnt"],
+    marker='o', 
+    linewidth=2,
+    color=warna['utama']
+)
+ax.set_title("Penyewaan Sepeda Sepanjang Waktu", fontsize=16)
+ax.set_xlabel("Tanggal")
+ax.set_ylabel("Jumlah Penyewaan")
+ax.tick_params(axis='y', labelsize=10)
+ax.tick_params(axis='x', labelsize=10)
+st.pyplot(fig)
 
-# Tren Penggunaan Sepeda
-st.header("📈 Tren Penggunaan Sepeda")
-tren_chart = create_chart(filtered_data, 'dteday' if 'dteday' in filtered_data.columns else 'instant', 'cnt', 'Bar', 'Jumlah Peminjaman Sepeda Seiring Waktu')
-st.plotly_chart(tren_chart, use_container_width=True)
+# Dampak cuaca terhadap penyewaan sepeda
+st.subheader("🌦️ Dampak Cuaca terhadap Penyewaan Sepeda")
+data_cuaca = data_terfilter.groupby('weathersit')['cnt'].mean().reset_index()
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.barplot(x="weathersit", y="cnt", data=data_cuaca, palette="coolwarm", ax=ax)
+ax.set_title("Rata-rata Penyewaan Sepeda berdasarkan Kondisi Cuaca", fontsize=16)
+ax.set_xlabel("Kondisi Cuaca")
+ax.set_ylabel("Rata-rata Penyewaan")
+ax.tick_params(axis='y', labelsize=10)
+ax.tick_params(axis='x', labelsize=10)
+st.pyplot(fig)
 
-# Pengaruh Cuaca
-st.header("🌦️ Pengaruh Cuaca Terhadap Peminjaman Sepeda")
-weather_chart = create_chart(filtered_data.groupby('weathersit')['cnt'].sum().reset_index(), 'weathersit', 'cnt', 'Bar', 'Total Peminjaman Sepeda Berdasarkan Kondisi Cuaca')
-st.plotly_chart(weather_chart, use_container_width=True)
-
-# Pola Penggunaan Berdasarkan Waktu
-st.header("⏰ Pola Penggunaan Berdasarkan Waktu")
-if data_type == 'hourly':
-    time_chart = create_chart(filtered_data.groupby('hr')['cnt'].mean().reset_index(), 'hr', 'cnt', 'Line', 'Rata-rata Peminjaman per Jam')
+# Pola penggunaan sepeda berdasarkan waktu
+st.subheader("⏰ Pola Penggunaan Sepeda berdasarkan Waktu")
+if jenis_data == 'Per Jam':
+    data_waktu = data_terfilter.groupby('hr')['cnt'].mean().reset_index()
+    x_label = "Jam"
 else:
-    time_chart = create_chart(filtered_data.groupby('weekday')['cnt'].mean().reset_index(), 'weekday', 'cnt', 'Line', 'Rata-rata Peminjaman per Hari')
-st.plotly_chart(time_chart, use_container_width=True)
+    data_waktu = data_terfilter.groupby('weekday')['cnt'].mean().reset_index()
+    x_label = "Hari dalam Seminggu"
 
-# Prediksi Sederhana
-st.header("🔮 Prediksi Jumlah Peminjaman")
+fig, ax = plt.subplots(figsize=(12, 6))
+sns.lineplot(x='hr' if jenis_data == 'Per Jam' else 'weekday', y="cnt", data=data_waktu, marker='o', color=warna['utama'], ax=ax)
+ax.set_title(f"Rata-rata Penyewaan per {x_label}", fontsize=16)
+ax.set_xlabel(x_label)
+ax.set_ylabel("Rata-rata Penyewaan")
+ax.tick_params(axis='y', labelsize=10)
+ax.tick_params(axis='x', labelsize=10)
+st.pyplot(fig)
+
+# Prediksi interaktif penyewaan sepeda
+st.subheader("🔮 Prediksi Penyewaan Sepeda")
 col1, col2 = st.columns(2)
 with col1:
-    temp = st.slider("Temperatur (Celsius)", min_value=0, max_value=40, value=20)
-    humidity = st.slider("Kelembaban (%)", min_value=0, max_value=100, value=50)
+    suhu = st.slider("Suhu (°C)", min_value=0, max_value=40, value=20)
+    kelembaban = st.slider("Kelembaban (%)", min_value=0, max_value=100, value=50)
 with col2:
-    windspeed = st.slider("Kecepatan Angin (km/h)", min_value=0, max_value=50, value=10)
-    weather = st.selectbox("Kondisi Cuaca", options=['Clear', 'Mist', 'Light Rain', 'Heavy Rain'])
+    kecepatan_angin = st.slider("Kecepatan Angin (km/jam)", min_value=0, max_value=50, value=10)
+    cuaca = st.selectbox("Kondisi Cuaca", options=['Cerah', 'Berkabut', 'Hujan Ringan', 'Hujan Lebat'])
 
-# Simulasi prediksi sederhana (gunakan model yang sebenarnya jika ada)
-prediction = (temp * 2) + (humidity * 0.5) - (windspeed * 1.5) + (50 if weather == 'Clear' else 0)
-st.metric("Prediksi Jumlah Peminjaman", f"{int(prediction)}")
+# Model prediksi sederhana
+dampak_cuaca = {'Cerah': 50, 'Berkabut': 30, 'Hujan Ringan': 10, 'Hujan Lebat': -20}
+prediksi = (suhu * 2) + (50 - abs(kelembaban - 50)) - (kecepatan_angin * 0.5) + dampak_cuaca.get(cuaca, 0)
+prediksi = max(0, prediksi)  # Memastikan prediksi tidak negatif
 
-# Data Mentah
-if st.checkbox("Tampilkan Data Mentah"):
-    st.subheader("Data Mentah")
-    st.dataframe(filtered_data.style.highlight_max(axis=0), width=1000, height=500)
+st.metric("Prediksi Penyewaan", f"{int(prediksi)} Unit")
 
-# Footer
+# Tampilan data mentah
+with st.expander("📄 Tampilkan Data Mentah"):
+    st.dataframe(data_terfilter.style.highlight_max(axis=0), use_container_width=True)
+
+# Footer dengan kredit
 st.markdown("---")
 st.markdown("Created by Niko Dwicahyo Widiyanto © 2024 | [LinkedIn](https://www.linkedin.com/in/nikodwicahyo/)")
